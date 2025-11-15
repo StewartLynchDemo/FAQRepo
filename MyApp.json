@@ -1,0 +1,20 @@
+[
+  {
+    "linkType" : "Local Video",
+    "link" : {
+      "url" : "EditDelete.mp4",
+      "title" : "Watch Video"
+    },
+    "answer" : "On the Trips tab, you see the list of all of your trip destinations. If you swipe from the leading edge, you will be able to tap on the edit button where you can change the name. If you swipe from the trailing edge you will find the delete button. Deleting a destination will also delete all corresponding trip visits and all photos.",
+    "question" : "How can I edit the name or delete a trip destination list?",
+    "level" : 1,
+    "sortOrder" : 1
+  },
+  {
+    "sortOrder" : 2,
+    "linkType" : "none",
+    "level" : 1,
+    "question" : "What is the difference between the “Current Location” view and the “Trips” view?",
+    "answer" : "The “Current Location” view shows you where you are at the current time.  You can add temporary red markers to this view and determine a route.  If you see a green marker on this view it is because you have created a trip destination in that area and added and saved markers while you were on that view.\nSee the FAQ on creating Trips."
+  }
+]
