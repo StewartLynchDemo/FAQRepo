@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StewartLynch YouTube</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#1e1e1e; color:#fff; height:100vh; overflow:hidden; }
+    .app-container { display:grid; grid-template-columns:280px 1fr; height:100vh; overflow:hidden; }
+    .sidebar { background:#111; border-right:1px solid #2a2a2a; padding:16px; overflow-y:auto; }
+    .sidebar h2 { font-size:20px; font-weight:600; margin-bottom:12px; }
+    .search-box{ position:relative; margin-bottom:12px; }
+    .search-box input{ width:100%; padding:10px 36px 10px 12px; border:1px solid #2a2a2a; background:#1a1a1a; color:#fff; border-radius:8px; outline:none; }
+    .search-icon{ position:absolute; right:10px; top:9px; opacity:.6; pointer-events:none; }
+    .filters{ display:flex; gap:8px; margin-bottom:12px; align-items:center; }
+    .tag-selector{ padding:8px 12px; background:#404040; border:none; border-radius:6px; color:#fff; font-size:14px; min-width:120px; }
+    .video-count{ font-size:14px; }
+    .diag{ font-size:12px; color:#bbb; line-height:1.4; margin-top:8px; }
+    .diag b{ color:#eee; }
+    .video-list{ margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+    .video-item{ display:grid; grid-template-columns:120px 1fr; gap:12px; padding:10px; border:1px solid #2a2a2a; background:#1a1a1a; border-radius:10px; align-items:center; cursor:pointer; transition:background .15s, border-color .15s; }
+    .video-item:hover{ background:#202020; border-color:#3a3a3a; }
+    .video-item.selected{ border-color:#6fb4ff; box-shadow:0 0 0 2px rgba(111,180,255,.2); }
+    .video-thumbnail{ width:120px; height:68px; object-fit:cover; border-radius:8px; }
+    .video-content{ display:flex; flex-direction:column; gap:6px; }
+    .video-title{ font-size:14px; font-weight:600; }
+    .video-meta{ display:flex; gap:10px; color:#bdbdbd; font-size:12px; }
+    .tags{ display:flex; flex-wrap:wrap; gap:6px; }
+    .tag{ font-size:12px; padding:4px 10px; border-radius:12px; background:#333; color:#fff; border:1px solid #444; }
+    .tag.released{ background:#1f4f2a; border-color:#2b6b3b; }
+    .tag.coming-soon{ background:#4d2a1f; border-color:#6b3b2b; }
+    .tag.in-progress{ background:#3a3a1d; border-color:#59592b; }
+    .main-content{ background:#141414; padding:24px; overflow-y:auto; }
+    .detail-view{ max-width:900px; margin:0 auto; }
+    .detail-header{ margin-bottom:16px; }
+    .detail-title{ font-size:28px; font-weight:700; line-height:1.2; margin-bottom:8px; }
+    .detail-meta{ display:flex; gap:16px; color:#bdbdbd; }
+    .detail-thumbnail{ width:100%; max-width:900px; border-radius:10px; margin:10px 0 16px; border:1px solid #2a2a2a; }
+    .detail-description{ margin:12px 0 18px; line-height:1.6; }
+    .detail-links{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+    .link-button{ display:inline-block; text-decoration:none; font-weight:600; padding:10px 14px; border-radius:8px; border:1px solid #2a2a2a; background:#1d1d1d; color:#eaeaea; transition:background .15s, border-color .15s; }
+    .link-button:hover{ background:#222; border-color:#3a3a3a; }
+    .starter-link{ background:#172335; border-color:#2b4b78; }
+    .source-link{ background:#1f2b1f; border-color:#395a39; }
+    .video-tags{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    /* Overlay */
+    .thumbnail-wrapper{ position:relative; display:inline-block; cursor:pointer; border-radius:8px; overflow:hidden; }
+    .play-overlay{ position:absolute; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.25); opacity:0; transition:opacity .2s; pointer-events:none; }
+    .thumbnail-wrapper:hover .play-overlay, .thumbnail-wrapper:focus-within .play-overlay{ opacity:1; }
+    .play-badge{ width:72px; height:72px; border-radius:50%; background:rgba(0,0,0,.55); display:grid; place-items:center; box-shadow:0 4px 16px rgba(0,0,0,.35); }
+    .play-badge svg{ width:28px; height:28px; fill:#fff; margin-left:3px; }
+    /* Mobile */
+    .mobile-header{ display:none; background:#111; border-bottom:1px solid #2a2a2a; padding:10px 12px; align-items:center; gap:8px; }
+    .menu-btn{ padding:6px 10px; background:#1b1b1b; border:1px solid #2a2a2a; color:#fff; border-radius:8px; }
+    .mobile-title{ font-weight:600; font-size:16px; }
+    .mobile-count{ margin-left:auto; font-size:12px; color:#c7c7c7; background:#1f1f1f; padding:4px 8px; border-radius:6px; border:1px solid #2a2a2a; }
+    @media (max-width:900px){
+      .app-container{ grid-template-columns:1fr; }
+      .sidebar{ position:fixed; z-index:40; top:0; bottom:0; left:0; width:88%; max-width:360px; transform:translateX(-100%); transition:transform .2s ease; box-shadow:8px 0 24px rgba(0,0,0,.25); }
+      .sidebar.open{ transform:translateX(0); }
+      .mobile-header{ display:flex; }
+      body{ overflow:auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mobile-header">
+    <button class="menu-btn" id="menuBtn">Menu</button>
+    <div class="mobile-title">StewartLynch Videos</div>
+    <div class="mobile-count" id="mobile-count">0</div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <h2>Videos</h2>
+
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search by title or description" autocomplete="off"/>
+        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <div class="filters">
+        <select id="tagSelector" class="tag-selector">
+          <option value="">All Playlists</option>
+        </select>
+        <div class="video-count">Count: <span id="videoCount">0</span></div>
+      </div>
+
+      <div id="diagnostics" class="diag"></div>
+      <div class="video-list" id="videoList"></div>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+      <div style="opacity:.7">Select a video from the list to see details.</div>
+    </main>
+  </div>
+
+  <!-- Inline fallback data: used only if all fetch attempts fail -->
+  <script type="application/json" id="inlineData">[
+    {
+      "id": "dQw4w9WgXcQ",
+      "video": "Sample: SwiftUI Overlay Play Button",
+      "videoDescription": "Demo entry loaded from inline fallback JSON so the UI always renders.",
+      "status": "released",
+      "releaseDate": "2025-08-17",
+      "length": "12:34",
+      "image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      "playlists": "SwiftUI,WebApp"
+    },
+    {
+      "id": "",
+      "video": "Coming Soon: Xcode 26 WebKit APIs",
+      "videoDescription": "Example of a non-released item that should not be clickable.",
+      "status": "in progress",
+      "releaseDate": "2025-09-10",
+      "length": "09:45",
+      "image": "https://placehold.co/640x360/png",
+      "playlists": "WebKit"
+    }
+  ]</script>
+
+  <script>
+    let videos = [];
+    let filteredVideos = [];
+    let selectedVideoId = null;
+    let isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+    const diag = (msg) => {
+      const el = document.getElementById('diagnostics');
+      el.innerHTML += (el.innerHTML ? '<br>' : '') + msg;
+      console.log('[Diagnostics]', msg);
+    };
+
+    function updateCount() {
+      const count = filteredVideos.length;
+      document.getElementById('videoCount').textContent = count;
+      document.getElementById('mobile-count').textContent = count;
+    }
+
+    function getStatusClass(status) {
+      switch ((status || '').toLowerCase()) {
+        case 'released': return 'released';
+        case 'coming soon': return 'coming-soon';
+        default: return 'in-progress';
+      }
+    }
+
+    function getStatusText(status) {
+      return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return 'Unknown';
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getFullImageURL(video) {
+      if (!video || !video.image) return '';
+      if (/^https?:\/\//i.test(video.image)) return video.image;
+      return `images/${video.image}`;
+    }
+
+    function renderVideos() {
+      const list = document.getElementById('videoList');
+      list.innerHTML = '';
+
+      filteredVideos.forEach(video => {
+        const item = document.createElement('div');
+        item.className = 'video-item' + (selectedVideoId === video.id ? ' selected' : '');
+        item.onclick = () => selectVideo(video.id);
+
+        const thumb = document.createElement('img');
+        thumb.src = getFullImageURL(video);
+        thumb.alt = video.video || '';
+        thumb.className = 'video-thumbnail';
+
+        const content = document.createElement('div');
+        content.className = 'video-content';
+
+        const title = document.createElement('div');
+        title.className = 'video-title';
+        title.textContent = video.video || '';
+
+        const meta = document.createElement('div');
+        meta.className = 'video-meta';
+        meta.innerHTML = `
+          <span>${video.length || 'N/A'}</span>
+          <span>${formatDate(video.releaseDate)}</span>
+          <span class="tag ${getStatusClass(video.status)}">${getStatusText(video.status)}</span>
+        `;
+
+        const tags = document.createElement('div');
+        tags.className = 'tags';
+        if (video.playlists) {
+          const pl = video.playlists.split(',').map(p => p.trim());
+          pl.forEach(playlist => {
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.textContent = playlist;
+            tag.style.backgroundColor = getPlaylistColor(playlist);
+            tags.appendChild(tag);
+          });
+        }
+
+        content.appendChild(title);
+        content.appendChild(meta);
+        content.appendChild(tags);
+
+        item.appendChild(thumb);
+        item.appendChild(content);
+
+        list.appendChild(item);
+      });
+
+      updateCount();
+    }
+
+    function selectVideo(videoId) {
+      selectedVideoId = videoId;
+      const video = videos.find(v => v.id === videoId) || videos[0];
+      if (!video) return;
+
+      renderVideos();
+
+      const mainContent = document.getElementById('mainContent');
+      const videoPlaylists = video.playlists ? video.playlists.split(',').map(p => p.trim()) : [];
+
+      mainContent.innerHTML = `
+        <div class="detail-view">
+          <div class="detail-header">
+            <h1 class="detail-title">${video.video}</h1>
+            <div class="detail-meta">
+              <span>Video Length: ${video.length || 'N/A'}</span>
+              <span>Status: <span class="tag ${getStatusClass(video.status)}">${getStatusText(video.status)}</span></span>
+            </div>
+            <div class="detail-meta">
+              <span>Release Date: ${formatDate(video.releaseDate)}</span>
+            </div>
+          </div>
+
+          ${video.status && video.status.toLowerCase() === 'released' && video.id ?
+            `
+            <div class="thumbnail-wrapper" onclick="playVideo('${video.id}')" title="Play video" role="button" tabindex="0" onkeypress="if(event.key==='Enter'||event.key===' '){playVideo('${video.id}');}">
+              <img src="${getFullImageURL(video)}" alt="${video.video}" class="detail-thumbnail">
+              <div class="play-overlay" aria-hidden="true">
+                <div class="play-badge">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5v14l11-7z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            `
+            :
+            `<img src="${getFullImageURL(video)}" alt="${video.video}" class="detail-thumbnail">`
+          }
+
+          <div class="detail-description">${video.videoDescription || ''}</div>
+
+          <div class="detail-links">
+            ${video.status && video.status.toLowerCase() === 'released' && video.id ?
+              `<a href="https://youtu.be/${video.id}" target="_blank" class="link-button">Video Link</a>` : ''
+            }
+          </div>
+
+          <div class="video-tags">
+            <strong>Playlists:</strong>
+            ${videoPlaylists.map(playlist =>
+              `<span class="tag" style="background-color:${getPlaylistColor(playlist)}">${playlist}</span>`
+            ).join('')}
+          </div>
+        </div>
+      `;
+
+      if (isMobile) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.body.style.overflow = 'auto';
+      }
+
+      mainContent.scrollTop = 0;
+    }
+
+    function filterVideos() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const selectedTag = document.getElementById('tagSelector').value;
+
+      filteredVideos = videos.filter(video => {
+        const matchesSearch = !searchTerm ||
+          (video.video && video.video.toLowerCase().includes(searchTerm)) ||
+          (video.videoDescription && video.videoDescription.toLowerCase().includes(searchTerm));
+
+        const matchesTag = !selectedTag ||
+          (video.playlists && video.playlists.split(',').map(p => p.trim()).includes(selectedTag));
+
+        return matchesSearch && matchesTag;
+      });
+
+      renderVideos();
+    }
+
+    function getPlaylistColor(playlist) {
+      const map = {
+        "SwiftUI": "#6b8afd",
+        "Xcode 26": "#ff6b6b",
+        "Liquid Glass": "#22c55e",
+        "WebApp": "#0ea5e9",
+        "WebKit": "#f59e0b",
+        "Foundation Models": "#a855f7"
+      };
+      if (map[playlist]) return map[playlist];
+      let hash = 0;
+      for (let i = 0; i < playlist.length; i++) {
+        hash = playlist.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue}deg 50% 35%)`;
+    }
+
+    function playVideo(id) {
+      if (!id) return;
+      window.open(`https://youtu.be/${id}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function populateTags(videosArr) {
+      const set = new Set();
+      videosArr.forEach(v => {
+        (v.playlists || '').split(',').map(x => x.trim()).filter(Boolean).forEach(p => set.add(p));
+      });
+      const selector = document.getElementById('tagSelector');
+      selector.innerHTML = '<option value=\"\">All Playlists</option>' +
+        Array.from(set).sort().map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    async function loadData() {
+      const base = 'https://stewartlynch.github.io/StewartLynchChannel/WebApp.json';
+      const urls = [
+        './WebApp.json',
+        base,
+        'https://api.allorigins.win/get?url=' + encodeURIComponent(base),
+        'https://corsproxy.io/?' + base
+      ];
+
+      for (const url of urls) {
+        try {
+          diag(`<b>Trying:</b> ${url}`);
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          let data;
+          if (url.includes('allorigins.win')) {
+            const wrapped = await res.json();
+            data = JSON.parse(wrapped.contents);
+          } else {
+            data = await res.json();
+          }
+
+          let v = [];
+          if (Array.isArray(data)) v = data;
+          else if (Array.isArray(data.eVideos)) v = data.eVideos;
+          else if (Array.isArray(data.videos)) v = data.videos;
+          else if (Array.isArray(data.items)) v = data.items;
+
+          if (!Array.isArray(v) || v.length === 0) throw new Error('No items found in payload');
+
+          videos = v.map(x => ({
+            id: x.id ?? x.videoId ?? x.youtubeId ?? '',
+            video: x.video ?? x.title ?? '',
+            videoDescription: x.videoDescription ?? x.description ?? '',
+            status: x.status ?? 'released',
+            releaseDate: x.releaseDate ?? x.date ?? '',
+            length: x.length ?? x.duration ?? '',
+            image: x.image ?? x.thumbnail ?? ''
+          }));
+
+          filteredVideos = videos.slice();
+          populateTags(videos);
+          renderVideos();
+          updateCount();
+          diag('<b>Loaded successfully.</b>');
+          return true;
+        } catch (e) {
+          diag(`Failed: ${url} — ${e.message}`);
+        }
+      }
+
+      // Final fallback: inline JSON
+      try {
+        diag('<b>Falling back to inline JSON.</b>');
+        const inline = document.getElementById('inlineData').textContent;
+        const data = JSON.parse(inline);
+        videos = data;
+        filteredVideos = videos.slice();
+        populateTags(videos);
+        renderVideos();
+        updateCount();
+        return true;
+      } catch (e) {
+        diag('Inline fallback failed: ' + e.message);
+        return false;
+      }
+    }
+
+    function initUI() {
+      const searchInput = document.getElementById('searchInput');
+      const tagSel = document.getElementById('tagSelector');
+      searchInput.addEventListener('input', filterVideos);
+      tagSel.addEventListener('change', filterVideos);
+
+      const menuBtn = document.getElementById('menuBtn');
+      const sidebar = document.getElementById('sidebar');
+      menuBtn?.addEventListener('click', () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.style.overflow = open ? 'hidden' : 'auto';
+      });
+
+      window.addEventListener('resize', () => {
+        const wasMobile = isMobile;
+        isMobile = window.matchMedia("(max-width: 900px)").matches;
+        if (!isMobile && wasMobile) {
+          sidebar.classList.remove('open');
+          document.body.style.overflow = 'auto';
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      initUI();
+      const ok = await loadData();
+      if (!ok) {
+        document.getElementById('videoList').innerHTML = '<div style="opacity:.8">Could not load any data.</div>';
+      }
+      // Auto-select first item so detail+overlay are obvious
+      if (videos.length) { selectVideo(videos[0].id || ''); }
+    });
+  </script>
+</body>
+</html>
